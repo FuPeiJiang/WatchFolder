@@ -1,8 +1,9 @@
 ﻿; ----------------------------------------------------------------------------------------------------------------------------------
 Gui, Margin, 20, 20
 Gui, Add, Text, , Watch Folder:
-Gui, Add, Edit, xm y+3 w730 vWatchedFolder cGray +ReadOnly, Select a folder ...
-Gui, Add, Button, x+m yp w50 hp +Default vSelect gSelectFolder, ...
+Gui, Add, Edit, xm y+3 w730 vvWatchedFolder ggFolderToWatch, Select a folder ...
+Gui, Add, Progress, y+5 w730 h20 cBlue vvMyProgress, 100
+; Gui, Add, Button, x+m yp w50 hp +Default vSelect gSelectFolder, ...
 Gui, Add, Text, xm y+5, Watch Changes:
 Gui, Add, Checkbox, xm y+3 vSubTree, In Sub-Tree
 Gui, Add, Checkbox, x+5 yp vFiles Checked, Files
@@ -19,7 +20,26 @@ Gui, Add, Button, x+m yp wp gPauseResume vPause +Disabled, Pause
 Gui, Add, Button, x+m yp wp gCLear, Clear
 Gui, Show, , Watch Folder
 GuiControl, Focus, Select
+
+FolderFromScript:="C:\Users\Public\AHK\notes\testsCMD dIR"
+if (checkFolderToWatch(FolderFromScript)) {
+   GuiControl, Text, vWatchedFolder, % FolderFromScript
+}
+
 Return
+checkFolderToWatch(folderToWatch) {
+   global
+   If InStr(FileExist(folderToWatch), "D") {
+      WatchedFolder:=folderToWatch
+      GuiControl, Enable, Action
+      GuiControl, +cBlue, vMyProgress
+      return true
+   } else {
+      GuiControl, Disable, Action
+      GuiControl, +cRed, vMyProgress
+      return false
+   }
+}
 ; ----------------------------------------------------------------------------------------------------------------------------------
 GuiClose:
 ExitApp
@@ -51,6 +71,7 @@ StartStop:
    }
    GuiControlGet, Caption, , Action
    If (Caption = "Start") {
+      GuiControl, +ReadOnly +cGray, vWatchedFolder
       Watch := 0
       Watch |= Files ? 1 : 0
       Watch |= Folders ? 2 : 0
@@ -74,6 +95,7 @@ StartStop:
       GuiControl, Enable, Pause
    }
    Else {
+      GuiControl, -ReadOnly +cDefault, vWatchedFolder
       WatchFolder.Remove(WatchedFolder)
       GuiControl, , Action, Start
       GuiControl, Enable, Select
@@ -81,13 +103,10 @@ StartStop:
    }
 Return
 ; ----------------------------------------------------------------------------------------------------------------------------------
-SelectFolder:
-  WatchedFolder:="C:\Users\Public\AHK\notes\tests\CMD DIR"
-   If InStr(FileExist(WatchedFolder), "D") {
-      GuiControl, +cDefault, WatchedFolder
-      GuiControl, , WatchedFolder, %WatchedFolder%
-      GuiControl, Enable, Action
-   }
+gFolderToWatch:
+; SelectFolder:
+   GuiControlGet, EditText,, vWatchedFolder
+   checkFolderToWatch(EditText)
 Return
 ; ----------------------------------------------------------------------------------------------------------------------------------
 MyUserFunc(Folder, Changes) {
