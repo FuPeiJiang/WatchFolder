@@ -1,8 +1,4 @@
-﻿#NoEnv
-; #Warn
-#Include WatchFolder.ahk
-SetBatchLines, -1
-; ----------------------------------------------------------------------------------------------------------------------------------
+﻿; ----------------------------------------------------------------------------------------------------------------------------------
 Gui, Margin, 20, 20
 Gui, Add, Text, , Watch Folder:
 Gui, Add, Edit, xm y+3 w730 vWatchedFolder cGray +ReadOnly, Select a folder ...
@@ -35,12 +31,12 @@ Return
 PauseResume:
    GuiControlGet, Caption, , Pause
    If (Caption = "Pause") {
-      WatchFolder("**PAUSE", True)
+      WatchFolder.Pause()
       GuiControl, Disable, Action
       GuiControl, , Pause, Resume
    }
    ELse {
-      WatchFolder("**PAUSE", False)
+      WatchFolder.UnPause()
       GuiControl, Enable, Action
       GuiControl, , Pause, Pause
    }
@@ -69,7 +65,7 @@ StartStop:
          GuiControl, , Folders, 1
          Watch := 3
       }
-      If !WatchFolder(WatchedFolder, "MyUserFunc", SubTree, Watch) {
+      If !WatchFolder.Add(WatchedFolder, "MyUserFunc", SubTree, Watch) {
          MsgBox, 0, Error, Call of WatchFolder() failed!
          Return
       }
@@ -78,7 +74,7 @@ StartStop:
       GuiControl, Enable, Pause
    }
    Else {
-      WatchFolder(WatchedFolder, "**DEL")
+      WatchFolder.Remove(WatchedFolder)
       GuiControl, , Action, Start
       GuiControl, Enable, Select
       GuiControl, Disable, Pause
@@ -86,7 +82,7 @@ StartStop:
 Return
 ; ----------------------------------------------------------------------------------------------------------------------------------
 SelectFolder:
-   WatchedFolder:="C:\Users\Public\AHK\notes\tests\CMD DIR"
+  WatchedFolder:="C:\Users\Public\AHK\notes\tests\CMD DIR"
    If InStr(FileExist(WatchedFolder), "D") {
       GuiControl, +cDefault, WatchedFolder
       GuiControl, , WatchedFolder, %WatchedFolder%
@@ -104,3 +100,8 @@ MyUserFunc(Folder, Changes) {
       LV_ModifyCol(A_Index, "AutoHdr")
    GuiControl, +Redraw, LV
 }
+return
+;Freezes forever
+f3::ExitApp
+
+#Include WatchFolder2.ahk
