@@ -69,8 +69,16 @@ class WatchFolder {
 
    Static timerFunc := ObjBindMethod(WatchFolder, "_Tick") ;https://www.autohotkey.com/docs/commands/SetTimer.htm#ExampleClass
 
-   Static WatchedFolders := {}
-   Static EventArray := []
+   Static FolderToEvent := {}
+   ; {
+   ; ["C:\Users\Public\AHK\notes\tests"]:596,
+   ; [Folder]:EventHandle,
+   ; }
+   Static EventToFolderinfo := {}
+   ; {
+   ; 596:{"FNIAddr":48942944, "FNIBuff":"", "Func":[], "Handle":608, "Name":"C:\Users\Public\AHK\notes\tests", "OVLAddr":50479504, "OVLBuff":"ă", "SubTree":0, "Watch":3}
+   ; [EventHandle]: {Handle:from CreateFile, ...},
+   ; }
    Static WaitObjectsPtr := 0
    Static BytesRead := 0
    Static Paused := False
@@ -87,7 +95,7 @@ class WatchFolder {
       this._Remove(Folder)
 
       RebuildWaitObjects := False
-      this.EventArrayCount:=this.EventArray.Count()
+      this.EventArrayCount:=this.EventToFolderinfo.Count()
       If (this.EventArrayCount < this.MAXIMUM_WAIT_OBJECTS) { ; add
          If (IsFunc(UserFunc) && (UserFunc := Func(UserFunc)) && (UserFunc.MinParams >= 2)) && (Watch &= 0x017F) {
             Handle := DllCall("CreateFile", "Str", Folder . "\", "UInt", 0x01, "UInt", 0x07, "Ptr",0, "UInt", 0x03
@@ -106,9 +114,11 @@ class WatchFolder {
                FolderObj["OVLAddr"] := OVLAddr
                DllCall("ReadDirectoryChangesW", "Ptr", Handle, "Ptr", FNIAddr, "UInt", this.SizeOfFNI, "Int", SubTree
                , "UInt", Watch, "UInt", 0, "Ptr", OVLAddr, "Ptr", 0)
-               this.EventArray[Event] := FolderObj
+               this.EventToFolderinfo[Event] := FolderObj
                this.EventArrayCount++
-               this.WatchedFolders[Folder] := Event
+               ok:=this.EventToFolderinfo
+               p(ok)
+               this.FolderToEvent[Folder] := Event
                RebuildWaitObjects := True
             }
          }
@@ -119,7 +129,7 @@ class WatchFolder {
          this.WaitObjectsPtr := DllCall( "GlobalAlloc", "UInt",0x42, "UInt",this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, "Ptr")
 
          OffSet := this.WaitObjectsPtr
-         For Event In this.EventArray
+         For Event In this.EventToFolderinfo
             Offset := NumPut(Event, Offset + 0, 0, "Ptr")
       }
       ; ===============================================================================================================================
@@ -145,13 +155,13 @@ class WatchFolder {
       this._Remove(Folder)
    }
    _Remove(Folder) {
-      If (this.WatchedFolders.HasKey(Folder)) { ; update or remove
-         Event := this.WatchedFolders[Folder]
-         FolderObj := this.EventArray[Event]
+      If (this.FolderToEvent.HasKey(Folder)) { ; update or remove
+         Event := this.FolderToEvent[Folder]
+         FolderObj := this.EventToFolderinfo[Event]
          DllCall("CloseHandle", "Ptr", FolderObj.Handle)
          DllCall("CloseHandle", "Ptr", Event)
-         this.EventArray.Delete(Event)
-         this.WatchedFolders.Delete(Folder)
+         this.EventToFolderinfo.Delete(Event)
+         this.FolderToEvent.Delete(Folder)
          RebuildWaitObjects := True
       }
    }
@@ -170,22 +180,22 @@ class WatchFolder {
    }
 
    RemoveAll(Folder) {
-      For Event, Folder In this.EventArray {
+      For Event, Folder In this.EventToFolderinfo {
          DllCall("CloseHandle", "Ptr", Folder.Handle)
          DllCall("CloseHandle", "Ptr", Event)
       }
-      this.WatchedFolders := {}
-      this.EventArray := []
+      this.FolderToEvent := {}
+      this.EventToFolderinfo := []
       this.Paused := False
       Return True
    }
 
    _Tick() {
-      If (ObjCount := this.EventArray.Count()) && !this.Paused {
+      If (ObjCount := this.EventToFolderinfo.Count()) && !this.Paused {
          ObjIndex := DllCall("WaitForMultipleObjects", "UInt", ObjCount, "Ptr", this.WaitObjectsPtr, "Int", 0, "UInt", 0, "UInt")
          While (ObjIndex >= 0) && (ObjIndex < ObjCount) {
             Event := NumGet(this.WaitObjectsPtr+0, ObjIndex * A_PtrSize, "UPtr")
-            Folder := this.EventArray[Event]
+            Folder := this.EventToFolderinfo[Event]
             If DllCall("GetOverlappedResult", "Ptr", Folder.Handle, "Ptr", Folder.OVLAddr, "UIntP", this.BytesRead, "Int", True) {
                Changes := []
                FNIAddr := Folder.FNIAddr
@@ -232,7 +242,7 @@ class WatchFolder {
             Sleep, 0
          }
       }
-      If (this.EventArray.Count() > 0) {
+      If (this.EventToFolderinfo.Count() > 0) {
          timerFunc:=this.timerFunc
          SetTimer, % timerFunc, -100
       }
