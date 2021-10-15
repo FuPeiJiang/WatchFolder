@@ -141,7 +141,7 @@ class WatchFolder {
    Pause() {
       this.Paused:=true
    }
-   UnPause() {
+   UnPause() { ;Resume is too easily mistaken as Remove
       this.Paused:=false
    }
 
