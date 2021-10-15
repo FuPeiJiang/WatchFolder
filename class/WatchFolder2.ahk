@@ -130,6 +130,10 @@ class WatchFolder {
          ; this._SetPropertyCapacityFillByte(thisPtr, this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, 0)
 
          ; https://www.autohotkey.com/boards/viewtopic.php?f=5&t=4384#p24452
+         ; if (this.WaitObjectsPtr!=false) {
+         ;I hope it doesn't crash when this.WaitObjectsPtr starts at 0
+         DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr )
+         ; }
          this.WaitObjectsPtr := DllCall( "GlobalAlloc", "UInt",0x42, "UInt",this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, "Ptr")
 
          OffSet := this.WaitObjectsPtr
@@ -252,7 +256,7 @@ class WatchFolder {
       }
    }
    ; _SetPropertyCapacityFillByte(ByRef VarName, Capacity, FillByte) {
-      ; return VarSetCapacity(*VarName, Capacity, FillByte)
+   ; return VarSetCapacity(*VarName, Capacity, FillByte)
    ; }
 
 }
