@@ -21,7 +21,7 @@ Gui, Add, Button, x+m yp wp gCLear, Clear
 Gui, Show, , Watch Folder
 GuiControl, Focus, Select
 
-FolderFromScript:="C:\Users\Public\AHK\notes\testsCMD dIR"
+FolderFromScript:="C:\Users\Public\AHK\notes\tests\CMD DIR"
 if (checkFolderToWatch(FolderFromScript)) {
    GuiControl, Text, vWatchedFolder, % FolderFromScript
 }

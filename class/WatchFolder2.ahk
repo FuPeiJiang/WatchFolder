@@ -79,6 +79,7 @@ class WatchFolder {
    ; 596:{"FNIAddr":48942944, "FNIBuff":"", "Func":[], "Handle":608, "Name":"C:\Users\Public\AHK\notes\tests", "OVLAddr":50479504, "OVLBuff":"ă", "SubTree":0, "Watch":3}
    ; [EventHandle]: {Handle:from CreateFile, ...},
    ; }
+   Static EventToFolderinfo_Count := 0
    Static WaitObjectsPtr := 0
    Static BytesRead := 0
    Static Paused := False
@@ -95,8 +96,7 @@ class WatchFolder {
       this._Remove(Folder)
 
       RebuildWaitObjects := False
-      this.EventArrayCount:=this.EventToFolderinfo.Count()
-      If (this.EventArrayCount < this.MAXIMUM_WAIT_OBJECTS) { ; add
+      If (this.EventToFolderinfo_Count < this.MAXIMUM_WAIT_OBJECTS) { ; add
          If (IsFunc(UserFunc) && (UserFunc := Func(UserFunc)) && (UserFunc.MinParams >= 2)) && (Watch &= 0x017F) {
             Handle := DllCall("CreateFile", "Str", Folder . "\", "UInt", 0x01, "UInt", 0x07, "Ptr",0, "UInt", 0x03
             , "UInt", 0x42000000, "Ptr", 0, "UPtr")
@@ -115,9 +115,7 @@ class WatchFolder {
                DllCall("ReadDirectoryChangesW", "Ptr", Handle, "Ptr", FNIAddr, "UInt", this.SizeOfFNI, "Int", SubTree
                , "UInt", Watch, "UInt", 0, "Ptr", OVLAddr, "Ptr", 0)
                this.EventToFolderinfo[Event] := FolderObj
-               this.EventArrayCount++
-               ok:=this.EventToFolderinfo
-               p(ok)
+               this.EventToFolderinfo_Count++
                this.FolderToEvent[Folder] := Event
                RebuildWaitObjects := True
             }
@@ -125,7 +123,7 @@ class WatchFolder {
       }
       If (RebuildWaitObjects) {
          ; https://www.autohotkey.com/boards/viewtopic.php?f=5&t=4384#p24452
-         DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr ) ;I hope it doesn't crash when this.WaitObjectsPtr starts at 0
+         ; DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr ) ;turns out, this is already freed by _Remove()? so it crashes when I try to free it?
          this.WaitObjectsPtr := DllCall( "GlobalAlloc", "UInt",0x42, "UInt",this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, "Ptr")
 
          OffSet := this.WaitObjectsPtr
@@ -133,7 +131,7 @@ class WatchFolder {
             Offset := NumPut(Event, Offset + 0, 0, "Ptr")
       }
       ; ===============================================================================================================================
-      If (this.EventArrayCount > 0) {
+      If (this.EventToFolderinfo_Count > 0) {
          timerFunc:=this.timerFunc
          SetTimer, % timerFunc, -100
       }
@@ -161,6 +159,7 @@ class WatchFolder {
          DllCall("CloseHandle", "Ptr", FolderObj.Handle)
          DllCall("CloseHandle", "Ptr", Event)
          this.EventToFolderinfo.Delete(Event)
+         this.EventToFolderinfo_Count--
          this.FolderToEvent.Delete(Folder)
          RebuildWaitObjects := True
       }
@@ -185,71 +184,70 @@ class WatchFolder {
          DllCall("CloseHandle", "Ptr", Event)
       }
       this.FolderToEvent := {}
-      this.EventToFolderinfo := []
+      this.EventToFolderinfo := {}
+      this.EventToFolderinfo_Count := 0
       this.Paused := False
       Return True
    }
 
    _Tick() {
-      If (ObjCount := this.EventToFolderinfo.Count()) && !this.Paused {
-         ObjIndex := DllCall("WaitForMultipleObjects", "UInt", ObjCount, "Ptr", this.WaitObjectsPtr, "Int", 0, "UInt", 0, "UInt")
-         While (ObjIndex >= 0) && (ObjIndex < ObjCount) {
-            Event := NumGet(this.WaitObjectsPtr+0, ObjIndex * A_PtrSize, "UPtr")
-            Folder := this.EventToFolderinfo[Event]
-            If DllCall("GetOverlappedResult", "Ptr", Folder.Handle, "Ptr", Folder.OVLAddr, "UIntP", this.BytesRead, "Int", True) {
-               Changes := []
-               FNIAddr := Folder.FNIAddr
-               FNIMax := FNIAddr + this.BytesRead
-               OffSet := 0
-               PrevIndex := 0
-               PrevAction := 0
-               PrevName := ""
-               Loop {
-                  FNIAddr += Offset
-                  OffSet := NumGet(FNIAddr + 0, "UInt")
-                  Action := NumGet(FNIAddr + 4, "UInt")
-                  Length := NumGet(FNIAddr + 8, "UInt") // 2
-                  Name := Folder.Name . "\" . StrGet(FNIAddr + 12, Length, "UTF-16")
-                  IsDir := InStr(FileExist(Name), "D") ? 1 : 0
-                  If (Name = PrevName) {
-                     If (Action = PrevAction)
-                        Continue
-                     If (Action = 1) && (PrevAction = 2) {
-                        PrevAction := Action
-                        Changes.RemoveAt(PrevIndex--)
-                        Continue
+      If (this.EventToFolderinfo_Count > 0) {
+         if (!this.Paused) {
+            ObjIndex := DllCall("WaitForMultipleObjects", "UInt", this.EventToFolderinfo_Count, "Ptr", this.WaitObjectsPtr, "Int", 0, "UInt", 0, "UInt")
+            While (ObjIndex >= 0) && (ObjIndex < this.EventToFolderinfo_Count) {
+               Event := NumGet(this.WaitObjectsPtr+0, ObjIndex * A_PtrSize, "UPtr")
+               Folder := this.EventToFolderinfo[Event]
+               If DllCall("GetOverlappedResult", "Ptr", Folder.Handle, "Ptr", Folder.OVLAddr, "UIntP", this.BytesRead, "Int", True) {
+                  Changes := []
+                  FNIAddr := Folder.FNIAddr
+                  FNIMax := FNIAddr + this.BytesRead
+                  OffSet := 0
+                  PrevIndex := 0
+                  PrevAction := 0
+                  PrevName := ""
+                  Loop {
+                     FNIAddr += Offset
+                     OffSet := NumGet(FNIAddr + 0, "UInt")
+                     Action := NumGet(FNIAddr + 4, "UInt")
+                     Length := NumGet(FNIAddr + 8, "UInt") // 2
+                     Name := Folder.Name . "\" . StrGet(FNIAddr + 12, Length, "UTF-16")
+                     IsDir := InStr(FileExist(Name), "D") ? 1 : 0
+                     If (Name = PrevName) {
+                        If (Action = PrevAction)
+                           Continue
+                        If (Action = 1) && (PrevAction = 2) {
+                           PrevAction := Action
+                           Changes.RemoveAt(PrevIndex--)
+                           Continue
+                        }
                      }
-                  }
-                  If (Action = 4)
-                     PrevIndex := Changes.Push({Action: Action, OldName: Name, IsDir: 0})
-                  Else If (Action = 5) && (PrevAction = 4) {
-                     Changes[PrevIndex, "Name"] := Name
-                     Changes[PrevIndex, "IsDir"] := IsDir
-                  }
-                  Else
-                     PrevIndex := Changes.Push({Action: Action, Name: Name, IsDir: IsDir})
-                  PrevAction := Action
-                  PrevName := Name
-               } Until (Offset = 0) || ((FNIAddr + Offset) > FNIMax)
-               If (Changes.Length() > 0)
-                  Folder.Func.Call(Folder.Name, Changes)
-               DllCall("ResetEvent", "Ptr", Event)
-               DllCall("ReadDirectoryChangesW", "Ptr", Folder.Handle, "Ptr", Folder.FNIAddr, "UInt", this.SizeOfFNI
-               , "Int", Folder.SubTree, "UInt", Folder.Watch, "UInt", 0
-               , "Ptr", Folder.OVLAddr, "Ptr", 0)
+                     If (Action = 4)
+                        PrevIndex := Changes.Push({Action: Action, OldName: Name, IsDir: 0})
+                     Else If (Action = 5) && (PrevAction = 4) {
+                        Changes[PrevIndex, "Name"] := Name
+                        Changes[PrevIndex, "IsDir"] := IsDir
+                     }
+                     Else
+                        PrevIndex := Changes.Push({Action: Action, Name: Name, IsDir: IsDir})
+                     PrevAction := Action
+                     PrevName := Name
+                  } Until (Offset = 0) || ((FNIAddr + Offset) > FNIMax)
+                  If (Changes.Length() > 0)
+                     Folder.Func.Call(Folder.Name, Changes)
+                  DllCall("ResetEvent", "Ptr", Event)
+                  DllCall("ReadDirectoryChangesW", "Ptr", Folder.Handle, "Ptr", Folder.FNIAddr, "UInt", this.SizeOfFNI
+                  , "Int", Folder.SubTree, "UInt", Folder.Watch, "UInt", 0
+                  , "Ptr", Folder.OVLAddr, "Ptr", 0)
+               }
+               ObjIndex := DllCall("WaitForMultipleObjects", "UInt", this.EventToFolderinfo_Count, "Ptr", this.WaitObjectsPtr, "Int", 0, "UInt", 0, "UInt")
+               Sleep, 0
             }
-            ObjIndex := DllCall("WaitForMultipleObjects", "UInt", ObjCount, "Ptr", this.WaitObjectsPtr, "Int", 0, "UInt", 0, "UInt")
-            Sleep, 0
          }
-      }
-      If (this.EventToFolderinfo.Count() > 0) {
+
          timerFunc:=this.timerFunc
          SetTimer, % timerFunc, -100
       }
+
    }
-   ; _SetPropertyCapacityFillByte(ByRef VarName, Capacity, FillByte) {
-   ; return VarSetCapacity(*VarName, Capacity, FillByte)
-   ; }
 
 }
-
