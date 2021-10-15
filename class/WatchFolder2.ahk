@@ -246,7 +246,7 @@ class WatchFolder {
 
          timerFunc:=this.timerFunc
          SetTimer, % timerFunc, -100
-      }
+      } ;end If (this.EventToFolderinfo_Count > 0) {
 
    }
 
