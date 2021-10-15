@@ -60,23 +60,20 @@
 ;     FILE_FLAG_OVERLAPPED           = 0x40000000
 ; ==================================================================================================================================
 class WatchFolder {
-   ; Static DummyObject := {Base: {__Delete: Func("WatchFolder").Bind("**END", "")}}
-   ; Static TimerID := "**" . A_TickCount
-   ; Static TimerFunc := Func("WatchFolder").Bind(TimerID, "")
-   Static timerFunc := ObjBindMethod(WatchFolder, "_Tick") ;https://www.autohotkey.com/docs/commands/SetTimer.htm#ExampleClass
    Static MAXIMUM_WAIT_OBJECTS := 64
    Static MAX_DIR_PATH := 260 - 12 + 1
+
    Static SizeOfLongPath := this.MAX_DIR_PATH << !!A_IsUnicode
    Static SizeOfFNI := 0xFFFF ; size of the FILE_NOTIFY_INFORMATION structure buffer (64 KB)
    Static SizeOfOVL := 32 ; size of the OVERLAPPED structure (64-bit)
+
+   Static timerFunc := ObjBindMethod(WatchFolder, "_Tick") ;https://www.autohotkey.com/docs/commands/SetTimer.htm#ExampleClass
+
    Static WatchedFolders := {}
    Static EventArray := []
-   ; Static WaitObjects := 0
    Static WaitObjectsPtr := 0
    Static BytesRead := 0
    Static Paused := False
-   ; (?<!Static )(?<!this\.)\b(MAXIMUM_WAIT_OBJECTS|MAX_DIR_PATH|SizeOfLongPath|SizeOfFNI|SizeOfOVL|WatchedFolders|EventArray|WaitObjects|BytesRead|Paused)\b
-   ; this.$1
 
    ; --- Static Methods ---
    Add(Folder, UserFunc, SubTree := False, Watch := 0x03) {
@@ -117,23 +114,8 @@ class WatchFolder {
          }
       }
       If (RebuildWaitObjects) {
-         ; https://www.autohotkey.com/boards/viewtopic.php?f=5&t=4384#p24510
-         ; VarSetCapacity(this.WaitObjects, this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, 0)
-         ; this.SetCapacity("WaitObjects", this.MAXIMUM_WAIT_OBJECTS * A_PtrSize )
-         ; thisPtr := this.GetAddress( "WaitObjects" ) 
-         ; DllCall( "RtlFillMemory", "Ptr",thisPtr, "Ptr",1024, "Char",0 ) ; Zero fill memory
-
-         ; VarSetCapacity(this.WaitObjectsPtr, this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, 0)
-
-         ; thisPtr := WatchFolder.GetAddress( "WaitObjects" )
-         ; thisPtr := this.GetAddress( "WaitObjects" )
-         ; this._SetPropertyCapacityFillByte(thisPtr, this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, 0)
-
          ; https://www.autohotkey.com/boards/viewtopic.php?f=5&t=4384#p24452
-         ; if (this.WaitObjectsPtr!=false) {
-         ;I hope it doesn't crash when this.WaitObjectsPtr starts at 0
-         DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr )
-         ; }
+         DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr ) ;I hope it doesn't crash when this.WaitObjectsPtr starts at 0
          this.WaitObjectsPtr := DllCall( "GlobalAlloc", "UInt",0x42, "UInt",this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, "Ptr")
 
          OffSet := this.WaitObjectsPtr
