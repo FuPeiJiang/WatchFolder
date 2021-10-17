@@ -123,8 +123,18 @@ class WatchFolder {
       }
       If (RebuildWaitObjects) {
          ; https://www.autohotkey.com/boards/viewtopic.php?f=5&t=4384#p24452
-         ; DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr ) ;turns out, this is already freed by _Remove()? so it crashes when I try to free it?
-         this.WaitObjectsPtr := DllCall( "GlobalAlloc", "UInt",0x42, "UInt",this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, "Ptr")
+
+         DllCall( "GlobalFree", "Ptr",this.WaitObjectsPtr )
+         ; thanks to "just me" https://www.autohotkey.com/boards/viewtopic.php?p=425240#p425240
+         ; GMEM_ZEROINIT
+         ; 0x0040
+         ; Initializes memory contents to zero.
+         this.WaitObjectsPtr := DllCall( "GlobalAlloc", "UInt",0x40, "UInt",this.MAXIMUM_WAIT_OBJECTS * A_PtrSize, "Ptr")
+         ; The movable-memory flags GHND and GMEM_MOVABLE add unnecessary overhead and require locking to be used safely. They should be avoided unless documentation specifically states that they should be used.
+         ; https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalalloc#remarks
+         ; GHND
+         ; 0x0042
+         ; Combines GMEM_MOVEABLE and GMEM_ZEROINIT.
 
          OffSet := this.WaitObjectsPtr
          For Event In this.EventToFolderinfo
