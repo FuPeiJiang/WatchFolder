@@ -82,7 +82,6 @@ class WatchFolder {
    ; }
    Static EventToFolderinfo_Count := 0
    Static WaitObjectsPtr := 0
-   Static BytesRead := 0
    Static Paused := False
 
    ; --- Static Methods ---
@@ -208,10 +207,10 @@ class WatchFolder {
             While (ObjIndex >= 0) && (ObjIndex < this.EventToFolderinfo_Count) {
                Event := NumGet(this.WaitObjectsPtr+0, ObjIndex * A_PtrSize, "UPtr")
                Folder := this.EventToFolderinfo[Event]
-               If DllCall("GetOverlappedResult", "Ptr", Folder.Handle, "Ptr", Folder.OVLAddr, "UIntP", this.BytesRead, "Int", True) {
+               If DllCall("GetOverlappedResult", "Ptr", Folder.Handle, "Ptr", Folder.OVLAddr, "UInt*", BytesRead, "Int", True) {
                   Changes := []
                   FNIAddr := Folder.FNIAddr
-                  FNIMax := FNIAddr + this.BytesRead
+                  FNIMax := FNIAddr + BytesRead
                   OffSet := 0
                   PrevIndex := 0
                   PrevAction := 0
