@@ -1,4 +1,5 @@
-﻿; ==================================================================================================================================
+﻿; https://www.autohotkey.com/boards/viewtopic.php?t=8384
+; ==================================================================================================================================
 ; Function:       Notifies about changes within folders.
 ;                 This is a rewrite of HotKeyIt's WatchDirectory() released at
 ;                    http://www.autohotkey.com/board/topic/60125-ahk-lv2-watchdirectory-report-directory-changes/
