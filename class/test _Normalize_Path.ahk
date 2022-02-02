@@ -6,7 +6,8 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 SetBatchLines, -1
 #KeyHistory 0
 
-#include <WatchFolder2>
+; #include <WatchFolder2>
+#include WatchFolder2.ahk
 
 assert(WatchFolder._Normalize_Path(""), false)
 assert(WatchFolder._Normalize_Path("C:\"), "C:\")
